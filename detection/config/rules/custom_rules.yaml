@@ -20,7 +20,7 @@
      parent=%proc.pname container_id=%container.id 
      container_name=%container.name image=%container.image.repository)
   priority: CRITICAL
-  tags: [test, critical, shadow]
+  tags: [test, critical, shadow, mitre_credential_access, T1003.008]
 
 # ---------------------------------------------
 # Cryptocurrency Mining Detection
@@ -47,8 +47,8 @@
 - rule: Detect Cryptocurrency Mining Network Connection
   desc: Detects network connections to known mining pool ports
   condition: >
-    outbound and 
-    fd.sport in (3333, 4444, 8888, 14444, 45700)
+    outbound and
+    fd.dport in (3333, 4444, 8888, 14444, 45700)
   output: >
     Possible mining pool connection 
     (user=%user.name command=%proc.cmdline connection=%fd.name 
@@ -97,9 +97,9 @@
 - rule: Outbound Connection to Suspicious Port
   desc: Detects outbound connections to commonly abused ports
   condition: >
-    outbound and 
-    (fd.sport in (4444, 5555, 6666, 7777, 8888, 9999, 1337, 31337) or
-     fd.sport > 60000)
+    outbound and
+    (fd.dport in (4444, 5555, 6666, 7777, 8888, 9999, 1337, 31337) or
+     fd.dport > 60000)
   output: >
     Suspicious outbound connection 
     (user=%user.name command=%proc.cmdline connection=%fd.name 
@@ -830,10 +830,10 @@
   desc: Detects potential DNS over HTTPS usage to bypass monitoring
   condition: >
     spawned_process and
-    proc.cmdline contains "dns.google" or
-    proc.cmdline contains "cloudflare-dns.com" or
-    proc.cmdline contains "1.1.1.1/dns-query" or
-    proc.cmdline contains "8.8.8.8/dns-query"
+    (proc.cmdline contains "dns.google" or
+     proc.cmdline contains "cloudflare-dns.com" or
+     proc.cmdline contains "1.1.1.1/dns-query" or
+     proc.cmdline contains "8.8.8.8/dns-query")
   output: >
     DNS over HTTPS detected 
     (user=%user.name command=%proc.cmdline container_id=%container.id)
@@ -909,3 +909,84 @@
     (user=%user.name command=%proc.cmdline container_id=%container.id)
   priority: NOTICE
   tags: [collection, screen_capture, mitre_collection, T1113]
+
+# ---------------------------------------------
+# Persistence - SSH & Shell Profile (T1098.004, T1546.004, T1053.002)
+# ---------------------------------------------
+
+- rule: SSH Authorized Keys Modified
+  desc: Detects writes to authorized_keys files (backdoor SSH access)
+  condition: >
+    open_write and
+    (fd.name contains "/.ssh/authorized_keys" or
+     fd.name contains "/.ssh/authorized_keys2")
+  output: >
+    SSH authorized_keys modified
+    (user=%user.name command=%proc.cmdline file=%fd.name
+     container_id=%container.id)
+  priority: CRITICAL
+  tags: [persistence, ssh, mitre_persistence, T1098.004]
+
+- rule: Shell Profile Modified
+  desc: Detects writes to shell startup files used for persistence
+  condition: >
+    open_write and
+    (fd.name endswith "/.bashrc" or
+     fd.name endswith "/.bash_profile" or
+     fd.name endswith "/.profile" or
+     fd.name endswith "/.zshrc" or
+     fd.name = "/etc/profile" or
+     fd.name startswith "/etc/profile.d/")
+  output: >
+    Shell profile modified
+    (user=%user.name command=%proc.cmdline file=%fd.name
+     container_id=%container.id)
+  priority: WARNING
+  tags: [persistence, shell_profile, mitre_persistence, T1546.004]
+
+- rule: At Job Scheduled
+  desc: Detects use of the at command for scheduled task persistence
+  condition: >
+    spawned_process and
+    proc.name in (at, atq, atrm, batch)
+  output: >
+    Scheduled task via at command
+    (user=%user.name command=%proc.cmdline container_id=%container.id)
+  priority: WARNING
+  tags: [persistence, scheduled_task, mitre_persistence, T1053.002]
+
+# ---------------------------------------------
+# Defense Evasion - Firewall Tampering (T1562.004)
+# ---------------------------------------------
+
+- rule: Firewall Rules Modified
+  desc: Detects iptables/nftables/ufw commands that modify firewall rules
+  condition: >
+    spawned_process and
+    ((proc.name in (iptables, ip6tables, nft) and
+      (proc.cmdline contains "-F" or proc.cmdline contains "--flush" or
+       proc.cmdline contains "-D" or proc.cmdline contains "--delete" or
+       proc.cmdline contains "-P ACCEPT")) or
+     (proc.name = "ufw" and proc.cmdline contains "disable") or
+     (proc.name = "firewall-cmd" and proc.cmdline contains "--remove"))
+  output: >
+    Firewall rules modified
+    (user=%user.name command=%proc.cmdline container_id=%container.id)
+  priority: WARNING
+  tags: [defense_evasion, firewall, mitre_defense_evasion, T1562.004]
+
+# ---------------------------------------------
+# Credential Access - Network Sniffing (T1040)
+# ---------------------------------------------
+
+- rule: Network Sniffing Tool Launched
+  desc: Detects packet capture tools that can intercept credentials
+  condition: >
+    spawned_process and
+    proc.name in (tcpdump, tshark, wireshark, dumpcap, ettercap,
+                  dsniff, arpspoof, bettercap, responder)
+  output: >
+    Network sniffing tool launched
+    (user=%user.name command=%proc.cmdline container_id=%container.id)
+  priority: WARNING
+  tags: [credential_access, sniffing, mitre_credential_access, T1040]

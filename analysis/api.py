@@ -34,6 +34,17 @@ CORS(app)  # Allow Grafana to call API
 # Load config once at startup
 config = load_config()
 
+# Validate provider API keys at startup
+_provider = config.get('analysis', {}).get('provider', 'ollama')
+if _provider == 'anthropic':
+    _key = config.get('analysis', {}).get('anthropic', {}).get('api_key', '')
+    if not _key or _key in ('your-api-key', '${ANTHROPIC_API_KEY}', ''):
+        logger.warning("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set — analysis requests will fail")
+elif _provider == 'openai':
+    _key = config.get('analysis', {}).get('openai', {}).get('api_key', '')
+    if not _key or _key in ('your-api-key', '${OPENAI_API_KEY}', ''):
+        logger.warning("LLM_PROVIDER=openai but OPENAI_API_KEY is not set — analysis requests will fail")
+
 # Analysis cache directory
 CACHE_DIR = Path(os.environ.get('ANALYSIS_CACHE_DIR', '/app/cache'))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)

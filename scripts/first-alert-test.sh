@@ -142,7 +142,6 @@ echo ""
 
 if [ "$DETECTED" = true ]; then
     # Calculate elapsed time
-    ELAPSED=$(awk "BEGIN {printf \"%.1f\", $END_TIME - $START_TIME}")
     ELAPSED_INT=$(awk "BEGIN {printf \"%.0f\", $END_TIME - $START_TIME}")
     
     echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

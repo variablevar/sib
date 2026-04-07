@@ -7,7 +7,6 @@ the structure and relationships needed for security analysis.
 
 import re
 import math
-import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, Set
 from enum import Enum

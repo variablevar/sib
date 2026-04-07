@@ -84,59 +84,57 @@ ollama list
 
 ### OpenAI Setup
 
-Set your API key in `analysis/config.yaml`:
-```yaml
-llm:
-  provider: openai
-  model: gpt-4
-  api_key: sk-your-key-here
-```
-
-Or via environment variable:
+Set in `.env`:
 ```bash
-export OPENAI_API_KEY=sk-your-key-here
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key-here
+OPENAI_MODEL=gpt-4o  # optional, defaults to gpt-4o
 ```
 
 ### Anthropic Setup
 
-```yaml
-llm:
-  provider: anthropic
-  model: claude-3-sonnet-20240229
-  api_key: your-key-here
+Set in `.env`:
+```bash
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your-key-here
+ANTHROPIC_MODEL=claude-sonnet-4-20250514  # optional
 ```
 
 ---
 
 ## Configuration
 
-Edit `analysis/config.yaml`:
+Edit `analysis/config.yaml` (or use environment variables — env vars take precedence):
 
 ```yaml
-# LLM Provider settings
-llm:
-  provider: ollama  # ollama, openai, or anthropic
-  model: llama3.1:8b
-  base_url: http://host.docker.internal:11434  # For Ollama
-
-# Obfuscation settings
-obfuscation:
+analysis:
   enabled: true
-  preserve_structure: true
+  obfuscation_level: standard  # standard or aggressive
+  provider: ${LLM_PROVIDER:-anthropic}  # ollama, openai, or anthropic
 
-# Cache settings
-cache:
-  enabled: true
-  ttl: 3600  # seconds
+  ollama:
+    url: ${OLLAMA_URL:-http://localhost:11434}
+    model: ${OLLAMA_MODEL:-qwen2.5:14b}
+
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    model: ${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
+
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    model: ${OPENAI_MODEL:-gpt-4o}
 
 # Storage backend (auto-detected from STACK env var)
 # STACK=vm → queries VictoriaLogs
 # STACK=grafana (or unset) → queries Loki
+storage:
+  backend: ${STACK:-loki}
 
-# Server settings
-server:
-  host: 0.0.0.0
-  port: 5000
+loki:
+  url: ${LOKI_URL:-http://sib-loki:3100}
+
+victorialogs:
+  url: ${VICTORIALOGS_URL:-http://sib-victorialogs:9428}
 ```
 
 ### Cache Deduplication

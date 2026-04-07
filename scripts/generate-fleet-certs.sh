@@ -57,7 +57,7 @@ get_fleet_hosts() {
     # Using grep/sed as a lightweight alternative to requiring yq
     local IN_FLEET=false
     local IN_HOSTS=false
-    local HOSTS=()
+    local found_hosts=()
 
     while IFS= read -r line; do
         # Check if we're in the fleet section
@@ -84,14 +84,14 @@ get_fleet_hosts() {
 
         # Extract hostname (lines like "    hostname:")
         if $IN_FLEET && $IN_HOSTS; then
-            local hostname=$(echo "$line" | grep -oP "^    [a-zA-Z0-9_-]+(?=:)" | sed 's/^    //')
+            local hostname; hostname=$(echo "$line" | grep -oP "^    [a-zA-Z0-9_-]+(?=:)" | sed 's/^    //')
             if [ -n "$hostname" ]; then
-                HOSTS+=("$hostname")
+                found_hosts+=("$hostname")
             fi
         fi
     done < "${INVENTORY_FILE}"
 
-    echo "${HOSTS[@]}"
+    echo "${found_hosts[@]}"
 }
 
 main() {

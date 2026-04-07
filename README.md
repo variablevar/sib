@@ -14,7 +14,7 @@ SIB provides a complete, self-hosted security monitoring stack for detecting thr
 - **Alert Forwarding**: Falcosidekick routes alerts to 50+ destinations (Slack, PagerDuty, Loki, etc.)
 - **Log Aggregation**: VictoriaLogs (default) or Loki stores security events with efficient querying
 - **Pre-built Dashboards**: Grafana dashboards for security overview and event exploration
-- **MITRE ATT&CK Coverage**: Dashboard mapping detections to the ATT&CK framework
+- **MITRE ATT&CK Coverage**: 65 detection rules mapped across all 12 ATT&CK tactics
 - **Demo Mode**: Generate realistic security events to see dashboards in action
 - **Sigma Rules**: Convert Sigma rules to Falco/LogsQL format
 - **Threat Intel**: IP blocklists from Abuse.ch, Spamhaus, and more
@@ -239,8 +239,8 @@ make open                 # Open Grafana in browser
 make info                 # Show all endpoints
 
 # Backup & Restore
-make backup               # Create timestamped backup of configs, rules, and Grafana dashboards
-make restore              # Restore from a backup file
+make backup               # Create timestamped backup of storage volumes, configs, rules, and Grafana data
+make restore BACKUP=path  # Restore from a backup directory (see backups/ for available backups)
 ```
 
 ## 📚 Documentation
@@ -809,7 +809,22 @@ curl -s 'http://localhost:9428/select/logsql/query?query=source:syscall&limit=5'
 
 ## 📜 License
 
-Apache 2.0 License - See [LICENSE](LICENSE) for details.
+SIB is licensed under the [Apache 2.0 License](LICENSE). You are free to use, modify, and distribute it — including for commercial purposes.
+
+SIB bundles and orchestrates the following third-party components, each under its own license:
+
+| Component | License | Notes |
+|---|---|---|
+| [Falco](https://falco.org/) | Apache 2.0 | |
+| [Falcosidekick](https://github.com/falcosecurity/falcosidekick) | Apache 2.0 | |
+| [Grafana](https://grafana.com/) | AGPL v3 | Unmodified; on-prem use is unrestricted |
+| [Loki](https://grafana.com/oss/loki/) | AGPL v3 | Unmodified; on-prem use is unrestricted |
+| [Grafana Alloy](https://github.com/grafana/alloy) | Apache 2.0 | |
+| [Prometheus](https://prometheus.io/) | Apache 2.0 | |
+| [VictoriaMetrics](https://victoriametrics.com/) | Apache 2.0 | |
+| [VictoriaLogs](https://victoriametrics.com/) | Apache 2.0 | |
+
+**AGPL v3 note:** Grafana and Loki are used as unmodified Docker images. Deploying them on your own infrastructure (on-prem or cloud) does not trigger AGPL v3 obligations. The AGPL v3 copyleft clause only applies if you distribute or host a *modified* version of these components as a service to others. For the typical SIB use case, this is a non-issue.
 
 ## 🙏 Acknowledgments
 

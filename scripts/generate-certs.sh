@@ -219,7 +219,7 @@ verify_certs() {
     # Check CA
     if [ -f "${CERTS_DIR}/ca/ca.crt" ]; then
         if openssl x509 -in "${CERTS_DIR}/ca/ca.crt" -noout 2>/dev/null; then
-            local CA_EXPIRY=$(openssl x509 -in "${CERTS_DIR}/ca/ca.crt" -noout -enddate | cut -d= -f2)
+            local CA_EXPIRY; CA_EXPIRY=$(openssl x509 -in "${CERTS_DIR}/ca/ca.crt" -noout -enddate | cut -d= -f2)
             success "CA certificate valid (expires: ${CA_EXPIRY})"
         else
             warn "CA certificate is invalid"
@@ -233,7 +233,7 @@ verify_certs() {
     # Check server cert
     if [ -f "${CERTS_DIR}/server/server.crt" ]; then
         if openssl verify -CAfile "${CERTS_DIR}/ca/ca.crt" "${CERTS_DIR}/server/server.crt" >/dev/null 2>&1; then
-            local SERVER_EXPIRY=$(openssl x509 -in "${CERTS_DIR}/server/server.crt" -noout -enddate | cut -d= -f2)
+            local SERVER_EXPIRY; SERVER_EXPIRY=$(openssl x509 -in "${CERTS_DIR}/server/server.crt" -noout -enddate | cut -d= -f2)
             success "Server certificate valid (expires: ${SERVER_EXPIRY})"
         else
             warn "Server certificate verification failed"
@@ -246,9 +246,9 @@ verify_certs() {
     # Check client certs
     for cert in "${CERTS_DIR}/clients"/*.crt; do
         [ -f "$cert" ] || continue
-        local CLIENT_NAME=$(basename "$cert" .crt)
+        local CLIENT_NAME; CLIENT_NAME=$(basename "$cert" .crt)
         if openssl verify -CAfile "${CERTS_DIR}/ca/ca.crt" "$cert" >/dev/null 2>&1; then
-            local CLIENT_EXPIRY=$(openssl x509 -in "$cert" -noout -enddate | cut -d= -f2)
+            local CLIENT_EXPIRY; CLIENT_EXPIRY=$(openssl x509 -in "$cert" -noout -enddate | cut -d= -f2)
             success "Client '${CLIENT_NAME}' certificate valid (expires: ${CLIENT_EXPIRY})"
         else
             warn "Client '${CLIENT_NAME}' certificate verification failed"

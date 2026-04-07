@@ -12,12 +12,11 @@ import sys
 import argparse
 import requests
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+from typing import Optional, List, Dict
 
 import yaml
 
-from obfuscator import obfuscate_alert, ObfuscationLevel
+from obfuscator import obfuscate_alert
 from prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, MITRE_MAPPING
 
 
@@ -446,7 +445,7 @@ class AlertAnalyzer:
                 if self.store_analysis(result):
                     print(f"  ✓ Stored analysis in {backend_name}", file=sys.stderr)
                 else:
-                    print(f"  ✗ Failed to store analysis", file=sys.stderr)
+                    print("  ✗ Failed to store analysis", file=sys.stderr)
         
         return results
 
@@ -559,12 +558,12 @@ def print_analysis(result: dict, verbose: bool = False):
     print("="*70)
     
     # Attack Vector
-    print(f"\n🎯 Attack Vector:")
+    print("\n🎯 Attack Vector:")
     print(f"   {analysis.get('attack_vector', 'N/A')}")
     
     # MITRE ATT&CK
     mitre = analysis.get('mitre_attack', {})
-    print(f"\n📊 MITRE ATT&CK:")
+    print("\n📊 MITRE ATT&CK:")
     print(f"   Tactic: {mitre.get('tactic', 'N/A')}")
     print(f"   Technique: {mitre.get('technique_id', 'N/A')} - {mitre.get('technique_name', 'N/A')}")
     if mitre.get('sub_technique'):
@@ -573,14 +572,14 @@ def print_analysis(result: dict, verbose: bool = False):
     # Risk Assessment
     risk = analysis.get('risk', {})
     severity_colors = {'Critical': '🔴', 'High': '🟠', 'Medium': '🟡', 'Low': '🟢'}
-    print(f"\n⚠️  Risk Assessment:")
+    print("\n⚠️  Risk Assessment:")
     print(f"   Severity: {severity_colors.get(risk.get('severity', ''), '⚪')} {risk.get('severity', 'N/A')}")
     print(f"   Confidence: {risk.get('confidence', 'N/A')}")
     print(f"   Impact: {risk.get('impact', 'N/A')}")
     
     # Mitigations
     mitigations = analysis.get('mitigations', {})
-    print(f"\n🛡️  Mitigations:")
+    print("\n🛡️  Mitigations:")
     if mitigations.get('immediate'):
         print("   Immediate:")
         for m in mitigations['immediate']:
@@ -596,7 +595,7 @@ def print_analysis(result: dict, verbose: bool = False):
     
     # False Positive
     fp = analysis.get('false_positive', {})
-    print(f"\n🤔 False Positive Assessment:")
+    print("\n🤔 False Positive Assessment:")
     print(f"   Likelihood: {fp.get('likelihood', 'N/A')}")
     if fp.get('common_causes'):
         print("   Common legitimate causes:")
@@ -604,11 +603,11 @@ def print_analysis(result: dict, verbose: bool = False):
             print(f"     • {cause}")
     
     # Summary
-    print(f"\n📝 Summary:")
+    print("\n📝 Summary:")
     print(f"   {analysis.get('summary', 'N/A')}")
     
     if verbose:
-        print(f"\n🔐 Obfuscation Mapping:")
+        print("\n🔐 Obfuscation Mapping:")
         print(json.dumps(result.get('obfuscation_mapping', {}), indent=2))
     
     print("\n" + "="*70)

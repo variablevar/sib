@@ -108,7 +108,7 @@ generate_client_cert() {
 
     # Verify the certificate
     if openssl verify -CAfile "${CERTS_DIR}/ca/ca.crt" "${CLIENT_DIR}/${CLIENT_NAME}.crt" >/dev/null 2>&1; then
-        local EXPIRY=$(openssl x509 -in "${CLIENT_DIR}/${CLIENT_NAME}.crt" -noout -enddate | cut -d= -f2)
+        local EXPIRY; EXPIRY=$(openssl x509 -in "${CLIENT_DIR}/${CLIENT_NAME}.crt" -noout -enddate | cut -d= -f2)
         success "Client certificate generated successfully"
         echo ""
         echo "Certificate details:"

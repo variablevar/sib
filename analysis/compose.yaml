@@ -13,6 +13,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      # API keys via env var (default) or Docker Secrets file:
+      #   ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_key  (recommended for production)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
       - OPENAI_API_KEY=${OPENAI_API_KEY}

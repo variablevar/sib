@@ -166,9 +166,17 @@ Back up Grafana and storage data volumes regularly. Ensure your backup target is
 
 SIB includes built-in backup/restore commands:
 ```bash
-make backup     # Create timestamped backup of configs, rules, and Grafana dashboards
-make restore    # Restore from a backup file
+make backup                          # Backup storage volumes, configs, rules, Grafana data
+make restore BACKUP=backups/<name>   # Restore from a backup directory
 ```
+
+`make backup` saves everything to `backups/sib_backup_<timestamp>/`:
+- Storage volumes (VictoriaLogs/Metrics or Loki/Prometheus data)
+- Grafana volume
+- Custom Falco rules and alerting config
+- Datasource configuration
+
+`make restore` stops services, restores all volumes, then prompts you to review `.env` manually (not auto-restored since it contains secrets).
 
 **Docker volumes to back up:**
 ```bash

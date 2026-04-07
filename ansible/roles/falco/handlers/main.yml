@@ -21,10 +21,3 @@
     - effective_deployment | default('docker') | trim == 'docker'
     - not (is_lxc | default(false))
   listen: Restart Falco
-
-- name: Restart Falco container
-  community.docker.docker_container:
-    name: sib-falco
-    state: started
-    restart: true
-  when: not (is_lxc | default(false))
