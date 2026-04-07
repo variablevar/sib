@@ -2,14 +2,21 @@
 
 This is a living roadmap. Priorities may shift based on feedback and community contributions.
 
-## 0–3 months
-- Add CI for linting and basic smoke checks
-- Improve onboarding: minimal install, FAQ, and hardening guide
+## Recently shipped
+- CI pipeline with shellcheck, Python linting, and Docker Compose validation
+- Onboarding docs: minimal install, FAQ, hardening guide, troubleshooting
+- 65 detection rules mapped across all 12 MITRE ATT&CK tactics
+- Fleet deployment via Ansible (Dockerized, no local install needed)
+- AI-powered alert analysis with obfuscation (Anthropic, OpenAI, Ollama)
+- mTLS support for encrypted fleet communication
+- Built-in backup/restore for storage volumes and config
+
+## Next
 - Publish container images for optional components
 - Add upgrade notes and versioned releases
+- Rule packs for common environments (cloud, K8s, web servers)
 
 ## 3–6 months
-- Rule packs and templates for common environments
 - Dashboards for compliance views (e.g., CIS focus)
 - Better alert enrichment (GeoIP, asset tags)
 - Lightweight installer script for fresh hosts
