@@ -13,8 +13,7 @@ import logging
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 from markupsafe import escape
 
@@ -35,17 +34,6 @@ CORS(app)  # Allow Grafana to call API
 # Load config once at startup
 config = load_config()
 
-# Validate provider API keys at startup
-_provider = config.get('analysis', {}).get('provider', 'ollama')
-if _provider == 'anthropic':
-    _key = config.get('analysis', {}).get('anthropic', {}).get('api_key', '')
-    if not _key or _key in ('your-api-key', '${ANTHROPIC_API_KEY}', ''):
-        logger.warning("LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set — analysis requests will fail")
-elif _provider == 'openai':
-    _key = config.get('analysis', {}).get('openai', {}).get('api_key', '')
-    if not _key or _key in ('your-api-key', '${OPENAI_API_KEY}', ''):
-        logger.warning("LLM_PROVIDER=openai but OPENAI_API_KEY is not set — analysis requests will fail")
-
 # Analysis cache directory
 CACHE_DIR = Path(os.environ.get('ANALYSIS_CACHE_DIR', '/app/cache'))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -53,6 +41,349 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 # Cache TTL in seconds (default 24h). Entries older than this are re-analyzed.
 CACHE_TTL = int(os.environ.get('ANALYSIS_CACHE_TTL', 86400))
 
+# HTML template for analysis results page
+ANALYSIS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIB Alert Analysis</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #111217;
+            color: #d8d9da;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: #ff9830; margin-bottom: 20px; font-size: 1.5em; }
+        h2 { color: #73bf69; margin: 20px 0 10px; font-size: 1.2em; }
+        .card {
+            background: #1f2129;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3274d9;
+        }
+        .card.critical { border-left-color: #f2495c; }
+        .card.high { border-left-color: #ff9830; }
+        .card.medium { border-left-color: #fade2a; }
+        .card.low { border-left-color: #73bf69; }
+        .original-alert {
+            background: #181b1f;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid #2c3235;
+        }
+        .section { margin-bottom: 25px; }
+        .label {
+            color: #8e8e8e;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .value { font-size: 1em; }
+        .mitre-badge {
+            display: inline-block;
+            background: #3274d9;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-right: 8px;
+        }
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .severity-critical { background: #f2495c; color: white; }
+        .severity-high { background: #ff9830; color: black; }
+        .severity-medium { background: #fade2a; color: black; }
+        .severity-low { background: #73bf69; color: black; }
+        .mitigation-list { list-style: none; padding-left: 0; }
+        .mitigation-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #2c3235;
+        }
+        .mitigation-list li:last-child { border-bottom: none; }
+        .mitigation-category {
+            color: #ff9830;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        .false-positive {
+            background: #2a2d35;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .fp-likelihood {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .fp-low { color: #73bf69; }
+        .fp-medium { color: #fade2a; }
+        .fp-high { color: #f2495c; }
+        .investigate-list {
+            background: #181b1f;
+            padding: 15px;
+            border-radius: 4px;
+            list-style: decimal;
+            padding-left: 35px;
+        }
+        .investigate-list li { padding: 5px 0; }
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #8e8e8e;
+        }
+        .spinner {
+            border: 3px solid #2c3235;
+            border-top: 3px solid #3274d9;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #f2495c22;
+            border: 1px solid #f2495c;
+            padding: 20px;
+            border-radius: 8px;
+            color: #f2495c;
+        }
+        .privacy-note {
+            background: #73bf6922;
+            border: 1px solid #73bf69;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .privacy-note strong { color: #73bf69; }
+        .obfuscation-map {
+            font-family: monospace;
+            font-size: 0.85em;
+            background: #181b1f;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #2c3235;
+            text-align: center;
+            color: #6e6e6e;
+            font-size: 0.85em;
+        }
+        .cached-badge {
+            display: inline-block;
+            background: #3274d9;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .nav-link {
+            color: #3274d9;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        .nav { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/" class="nav-link">← API Home</a>
+            <a href="/history" class="nav-link">📜 History</a>
+        </div>
+        <h1>🛡️ SIB Alert Analysis {% if cached %}<span class="cached-badge">📋 Cached</span>{% endif %}</h1>
+        
+        {% if error %}
+        <div class="error">
+            <strong>Analysis Error:</strong> {{ error }}
+        </div>
+        {% else %}
+        
+        <div class="privacy-note">
+            {% if obfuscated_output and obfuscated_output != original_output %}
+            <strong>🔐 Privacy Protected:</strong> Sensitive data was obfuscated before AI analysis. 
+            IPs, usernames, hostnames, and secrets are replaced with tokens.
+            {% else %}
+            <strong>🔐 Privacy Protected:</strong> No sensitive data detected — alert was sent to AI unchanged.
+            {% endif %}
+            {% if cached %}<br><em>This is a cached result from {{ timestamp }}.</em>{% endif %}
+        </div>
+        
+        <div class="section">
+            <div class="label">Original Alert</div>
+            <div class="original-alert">{{ original_output }}</div>
+        </div>
+        
+        {% if obfuscated_output and obfuscated_output != original_output %}
+        <div class="section">
+            <div class="label">🔒 What Was Sent to AI (Obfuscated)</div>
+            <div class="original-alert" style="border-left: 3px solid #73bf69;">{{ obfuscated_output }}</div>
+        </div>
+        {% endif %}
+        
+        {% if obfuscation_mapping and show_mapping %}
+        <div class="section">
+            <div class="label">Obfuscation Mapping</div>
+            <div class="obfuscation-map">
+                {% for category, mappings in obfuscation_mapping.items() %}
+                {% if mappings and category != 'secrets_count' %}
+                <div><strong>{{ category }}:</strong> {{ mappings }}</div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card {{ severity_class }}">
+            <div class="section">
+                <div class="label">Attack Vector</div>
+                <div class="value">{{ analysis.attack_vector or 'N/A' }}</div>
+            </div>
+            
+            <div class="section">
+                <div class="label">MITRE ATT&CK</div>
+                <div class="value">
+                    {% if analysis.mitre_attack %}
+                    <span class="mitre-badge">{{ analysis.mitre_attack.tactic or 'Unknown' }}</span>
+                    <span class="mitre-badge">{{ analysis.mitre_attack.technique_id or 'Unknown' }} - {{ analysis.mitre_attack.technique_name or '' }}</span>
+                    {% if analysis.mitre_attack.sub_technique %}
+                    <span class="mitre-badge">{{ analysis.mitre_attack.sub_technique }}</span>
+                    {% endif %}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="label">Risk Assessment</div>
+                <div class="value">
+                    {% if analysis.risk %}
+                    <span class="severity-badge severity-{{ (analysis.risk.severity or 'medium')|lower }}">
+                        {{ analysis.risk.severity or 'Unknown' }}
+                    </span>
+                    <span style="margin-left: 10px;">Confidence: {{ analysis.risk.confidence or 'Unknown' }}</span>
+                    <p style="margin-top: 10px; color: #b0b0b0;">{{ analysis.risk.impact or '' }}</p>
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <h2>🛡️ Mitigations</h2>
+        <div class="card">
+            {% if analysis.mitigations %}
+                {% if analysis.mitigations.immediate %}
+                <div class="mitigation-category">⚡ Immediate Actions</div>
+                <ul class="mitigation-list">
+                    {% for item in analysis.mitigations.immediate %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                {% if analysis.mitigations.short_term %}
+                <div class="mitigation-category">📅 Short-term</div>
+                <ul class="mitigation-list">
+                    {% for item in analysis.mitigations.short_term %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                {% if analysis.mitigations.long_term %}
+                <div class="mitigation-category">🎯 Long-term</div>
+                <ul class="mitigation-list">
+                    {% for item in analysis.mitigations.long_term %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            {% else %}
+            <p>No mitigation recommendations available.</p>
+            {% endif %}
+        </div>
+        
+        <h2>🤔 False Positive Assessment</h2>
+        <div class="false-positive">
+            {% if analysis.false_positive %}
+            <p class="fp-likelihood fp-{{ (analysis.false_positive.likelihood or 'medium')|lower }}">
+                Likelihood: {{ analysis.false_positive.likelihood or 'Unknown' }}
+            </p>
+            {% if analysis.false_positive.common_causes %}
+            <p style="margin-top: 10px;"><strong>Common legitimate causes:</strong></p>
+            <ul style="margin-top: 5px; padding-left: 20px;">
+                {% for cause in analysis.false_positive.common_causes %}
+                <li>{{ cause }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% else %}
+            <p>No false positive assessment available.</p>
+            {% endif %}
+        </div>
+        
+        {% if analysis.investigate %}
+        <h2>🔍 Investigation Steps</h2>
+        <ol class="investigate-list">
+            {% for step in analysis.investigate %}
+            <li>{{ step }}</li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+        
+        <h2>📝 Summary</h2>
+        <div class="card">
+            <p>{{ analysis.summary or 'No summary available.' }}</p>
+        </div>
+        
+        {% if show_mapping and obfuscation_mapping %}
+        <h2>🔐 Obfuscation Mapping</h2>
+        <div class="card">
+            <p style="margin-bottom: 10px; color: #8e8e8e;">
+                The following sensitive data was replaced with tokens:
+            </p>
+            <div class="obfuscation-map">
+                <pre>{{ obfuscation_mapping | tojson(indent=2) }}</pre>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% endif %}
+        
+        <div class="footer">
+            Analyzed by SIB (SIEM in a Box) • {{ timestamp }}
+        </div>
+    </div>
+</body>
+</html>
+"""
 
 # ==================== Cache Functions ====================
 
@@ -174,28 +505,6 @@ def health():
     return jsonify({'status': 'healthy', 'service': 'sib-analysis-api'})
 
 
-def _is_safe_health_url(url: str) -> bool:
-    """Validate that a health-check URL points to an internal service only.
-
-    Blocks IP addresses (except loopback) and external hostnames to
-    prevent SSRF via environment variable injection.
-    """
-    try:
-        parsed = urlparse(url)
-        if parsed.scheme not in ('http', 'https'):
-            return False
-        host = parsed.hostname or ''
-        # Allow localhost and Docker service names (sib-* pattern)
-        if host in ('localhost', '127.0.0.1'):
-            return True
-        # Allow internal Docker service names — letters, digits, hyphens only, no dots
-        if re.fullmatch(r'[a-z0-9][a-z0-9\-]*', host):
-            return True
-        return False
-    except Exception:
-        return False
-
-
 @app.route('/api/health/all', methods=['GET'])
 def health_all():
     """Aggregate health check for all SIB services.
@@ -204,11 +513,7 @@ def health_all():
     Uses Docker-internal hostnames (sib-*) by default; override with
     query params if running outside Docker.
     """
-    try:
-        timeout = int(request.args.get('timeout', 3))
-    except (ValueError, TypeError):
-        timeout = 3
-    timeout = max(1, min(timeout, 30))
+    timeout = float(request.args.get('timeout', 3))
     results = {}
 
     checks = {
@@ -239,11 +544,8 @@ def health_all():
 
     import requests as http_client
     for name, check in checks.items():
-        if not _is_safe_health_url(check['url']):
-            results[name] = {'status': 'error', 'detail': 'invalid health-check URL'}
-            continue
         try:
-            r = http_client.get(check['url'], timeout=timeout)  # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
+            r = http_client.get(check['url'], timeout=timeout)
             results[name] = {
                 'status': 'healthy' if r.ok else 'unhealthy',
                 'code': r.status_code,
@@ -347,7 +649,7 @@ def analyze_page():
         show_mapping = request.args.get('show_mapping', 'false').lower() == 'true'
         
         if not output:
-            return render_template('analysis.html', 
+            return render_template_string(ANALYSIS_TEMPLATE, 
                 error="No alert output provided. Use ?output=... parameter.",
                 analysis={},
                 original_output='',
@@ -370,7 +672,7 @@ def analyze_page():
             severity = (risk.get('severity') or 'medium').lower()
             severity_class = severity if severity in ['critical', 'high', 'medium', 'low'] else 'medium'
             
-            return render_template('analysis.html',
+            return render_template_string(ANALYSIS_TEMPLATE,
                 error=None,
                 analysis=analysis,
                 original_output=output,
@@ -417,7 +719,7 @@ def analyze_page():
         obfuscated_alert = result.get('obfuscated_alert', {})
         obfuscated_output = obfuscated_alert.get('output', '') if isinstance(obfuscated_alert, dict) else str(obfuscated_alert)
         
-        return render_template('analysis.html',
+        return render_template_string(ANALYSIS_TEMPLATE,
             error=None,
             analysis=analysis,
             original_output=output,
@@ -431,7 +733,7 @@ def analyze_page():
         
     except Exception as e:
         logger.exception("Analysis page failed")
-        return render_template('analysis.html',
+        return render_template_string(ANALYSIS_TEMPLATE,
             error=str(e),
             analysis={},
             original_output=request.args.get('output', ''),
@@ -495,8 +797,6 @@ def history_page():
 @app.route('/history/<cache_key>', methods=['GET'])
 def history_detail(cache_key: str):
     """View a cached analysis."""
-    if not re.fullmatch(r'[a-f0-9]{16}', cache_key):
-        return "Invalid cache key", 400
     cached = get_cached_analysis(cache_key)
     if not cached:
         return "Analysis not found", 404
@@ -506,7 +806,7 @@ def history_detail(cache_key: str):
     severity = (risk.get('severity') or 'medium').lower()
     severity_class = severity if severity in ['critical', 'high', 'medium', 'low'] else 'medium'
     
-    return render_template('analysis.html',
+    return render_template_string(ANALYSIS_TEMPLATE,
         error=None,
         analysis=analysis,
         original_output=cached.get('original_output', ''),

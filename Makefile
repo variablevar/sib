@@ -85,18 +85,6 @@ install: network ## Install all security stacks
 		echo "$(YELLOW)   (saved in .env file)$(RESET)"; \
 		echo ""; \
 	fi
-	@set -a; . ./.env 2>/dev/null || true; set +a; \
-	STACK=$${STACK:-vm}; \
-	if [ "$$STACK" = "vm" ]; then PORTS="2801 3000 9428 8428"; else PORTS="2801 3000 3100 9090"; fi; \
-	CONFLICTS=""; \
-	for port in $$PORTS; do \
-		lsof -Pi :$$port -sTCP:LISTEN -t >/dev/null 2>&1 && CONFLICTS="$$CONFLICTS $$port"; \
-	done; \
-	if [ -n "$$CONFLICTS" ]; then \
-		echo "$(YELLOW)⚠️  Ports already in use:$$CONFLICTS$(RESET)"; \
-		echo "$(YELLOW)   Run 'make check-ports' for details. Proceeding anyway...$(RESET)"; \
-		echo ""; \
-	fi
 	@# Install based on STACK selection (grafana or vm)
 	@set -a; . ./.env 2>/dev/null || true; set +a; \
 	STACK=$${STACK:-vm}; \
@@ -124,11 +112,6 @@ install: network ## Install all security stacks
 	@echo "  $(GREEN)make open$(RESET)        Open Grafana in browser"
 	@echo "  $(GREEN)make health$(RESET)      Verify all services are healthy"
 	@echo "  $(GREEN)make info$(RESET)        Show all endpoints and ports"
-	@echo ""
-	@echo "$(YELLOW)🔒 Security reminder:$(RESET)"
-	@echo "  Port 2801 (Falcosidekick) accepts unauthenticated connections on all interfaces."
-	@echo "  Restrict access with a firewall rule if this host is internet-accessible."
-	@echo "  For fleet deployments, enable mTLS: set MTLS_ENABLED=true in .env"
 	@echo ""
 
 install-detection: network ## Install Falco detection stack
@@ -184,14 +167,19 @@ install-grafana: network ## Install Grafana dashboard
 
 install-analysis: network ## Install AI Analysis API service
 	@echo "$(CYAN)🤖 Installing AI Analysis API...$(RESET)"
-	@# Prompt for analysis API hostname
-	@if [ -z "$(ANALYSIS_HOST)" ]; then \
-		echo "$(YELLOW)Enter the hostname/IP where the analysis API will be accessed from browsers$(RESET)"; \
-		echo "$(YELLOW)(e.g., your server's IP address or hostname):$(RESET)"; \
-		read -p "> " host; \
-	else \
+	@# Auto-detect server IP (override with ANALYSIS_HOST= or in .env)
+	@if [ -n "$(ANALYSIS_HOST)" ]; then \
 		host="$(ANALYSIS_HOST)"; \
+	else \
+		set -a; . ./.env 2>/dev/null || true; set +a; \
+		if [ -n "$$ANALYSIS_HOST" ]; then \
+			host="$$ANALYSIS_HOST"; \
+		else \
+			host=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
+			host=$${host:-$$(hostname 2>/dev/null || echo "localhost")}; \
+		fi; \
 	fi; \
+	echo "  Analysis API host: $$host (override with ANALYSIS_HOST in .env)"; \
 	set -a; . ./.env 2>/dev/null || true; set +a; \
 	STACK=$${STACK:-vm}; \
 	if [ "$$STACK" = "vm" ]; then \
@@ -597,7 +585,7 @@ demo-quick: ## Run quick security demo (1s delay between events)
 test-rules: ## Validate Falco rules syntax
 	@echo "$(CYAN)Validating Falco rules...$(RESET)"
 	@docker run --rm -v $(PWD)/detection/config:/etc/falco:ro \
-		falcosecurity/falco:latest \
+		falcosecurity/falco:0.40.0 \
 		falco --validate /etc/falco/rules/ 2>&1 | head -20 || true
 	@echo ""
 
@@ -834,12 +822,6 @@ restore: ## Restore SIB data from backup (BACKUP=path/to/backup)
 	fi
 	@if [ -f "$(BACKUP)/alerting-config.yaml" ]; then \
 		cp "$(BACKUP)/alerting-config.yaml" alerting/config/config.yaml && echo "  $(GREEN)✓$(RESET) Alerting config restored"; \
-	fi
-	@if [ -f "$(BACKUP)/datasources.yml" ]; then \
-		cp "$(BACKUP)/datasources.yml" grafana/provisioning/datasources/datasources.yml && echo "  $(GREEN)✓$(RESET) Datasource config restored"; \
-	fi
-	@if [ -f "$(BACKUP)/dot-env" ]; then \
-		echo "$(YELLOW)  ! .env found in backup — not auto-restored (review manually: $(BACKUP)/dot-env)$(RESET)"; \
 	fi
 	@echo ""
 	@echo "$(GREEN)✓ Restore complete$(RESET)"

@@ -232,7 +232,7 @@ echo -e "  ${GREEN}✓${NC} Generated: $SCRIPT_DIR/lookup-ip.sh"
 
 echo ""
 echo -e "${CYAN}Summary:${NC}"
-echo -e "  • Downloaded ${YELLOW}$(ls "$INTEL_DIR"/*.txt 2>/dev/null | wc -l | tr -d ' ')${NC} threat intel feeds"
+echo -e "  • Downloaded ${YELLOW}$(ls "$FEED_DIR"/*.txt 2>/dev/null | wc -l | tr -d ' ')${NC} threat intel feeds"
 echo -e "  • Combined ${YELLOW}$total_ips${NC} unique malicious IPs"
 echo -e "  • Generated Falco rules"
 echo ""

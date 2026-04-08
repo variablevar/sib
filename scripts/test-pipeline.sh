@@ -181,13 +181,17 @@ echo ""
 echo "[7/7] Access URLs"
 echo "---"
 SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0 2>/dev/null || echo "localhost")
+STORAGE_HOST="${STORAGE_BIND:-127.0.0.1}"
+if [ "$STORAGE_HOST" = "0.0.0.0" ]; then
+    STORAGE_HOST="$SERVER_IP"
+fi
 echo "  Grafana:      http://${SERVER_IP}:3000"
 if [ "$STACK" = "vm" ]; then
-    echo "  VictoriaLogs: http://${SERVER_IP}:9428"
-    echo "  VictoriaMetrics: http://${SERVER_IP}:8428"
+    echo "  VictoriaLogs: http://${STORAGE_HOST}:9428"
+    echo "  VictoriaMetrics: http://${STORAGE_HOST}:8428"
 else
-    echo "  Prometheus:   http://${SERVER_IP}:9090"
-    echo "  Loki:         http://${SERVER_IP}:3100"
+    echo "  Prometheus:   http://${STORAGE_HOST}:9090"
+    echo "  Loki:         http://${STORAGE_HOST}:3100"
 fi
 echo "  Sidekick:     http://${SERVER_IP}:2801"
 echo ""

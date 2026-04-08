@@ -8,12 +8,7 @@
 # Engine Configuration
 # ---------------------------------------------
 
-# Use modern_ebpf driver (no kernel headers required)
-engine:
-  kind: modern_ebpf
-  modern_ebpf:
-    cpus_for_each_buffer: 2
-    buf_size_preset: 4
+__ENGINE_CONFIG__
 
 # ---------------------------------------------
 # Output Configuration

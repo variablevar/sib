@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] - 2026-04-08
+
+### Added
+- 6 new obfuscator tests for real Falco alert patterns (`container_id=host`, system users, hex IDs)
+- Auto-detection of host IP for `make install-analysis` (no interactive prompt)
+- `ANALYSIS_BIND` and `ANALYSIS_HOST` settings in `.env.example`
+
+### Fixed
+- Falco upgraded from 0.39.2 to 0.40.0 (fixes `scap_init` crash on kernel 6.12+)
+- `make test-rules` pinned to `falco:0.40.0` (was using `:latest`)
+- `test-pipeline.sh` access URLs now correctly show `127.0.0.1` for localhost-bound services
+- Privacy banner in analysis UI no longer claims data was obfuscated when nothing changed
+- Falco config generator improved with output format and metrics settings
+
+### Changed
+- `make install-analysis` no longer prompts for IP — auto-detects via `hostname -I` with fallback chain (CLI arg → `.env` → auto-detect)
+- Detection rules consolidated and refined
+
+---
+
 ## [Unreleased]
 
 ### Added

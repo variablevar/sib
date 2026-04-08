@@ -266,3 +266,61 @@ class TestObfuscateAlert:
         alert = {"output": "test"}
         with pytest.raises(ValueError):
             obfuscate_alert(alert, level="nonexistent")
+
+
+# ---------------------------------------------------------------------------
+# Real Falco alert patterns
+# ---------------------------------------------------------------------------
+
+class TestFalcoAlertPatterns:
+    """Tests using realistic Falco alert output formats."""
+
+    def test_container_id_host_not_obfuscated(self):
+        """container_id=host is a Falco literal, not a real container ID."""
+        o = Obfuscator()
+        text = "Critical Mass file deletion detected (user=root command=rm -rf -- /var/lib/dpkg/tmp.ci container_id=host)"
+        result = o.obfuscate(text)
+        assert "container_id=host" in result
+
+    def test_system_user_only_alert_unchanged(self):
+        """Alert with only system users and no IPs should be mostly unchanged."""
+        o = Obfuscator()
+        text = "Critical Mass file deletion detected (user=root command=rm -rf -- /var/lib/dpkg/tmp.ci container_id=host)"
+        result = o.obfuscate(text)
+        assert "user=root" in result
+        assert "container_id=host" in result
+
+    def test_real_container_id_obfuscated(self):
+        """A real 12-char hex container ID should be obfuscated."""
+        o = Obfuscator()
+        text = "Critical SSH authorized_keys modified (user=root command=touch /root/.ssh/authorized_keys container_id=014d51769962)"
+        result = o.obfuscate(text)
+        assert "014d51769962" not in result
+        assert "[CONTAINER-1]" in result
+        # root is a system user, should stay
+        assert "user=root" in result
+
+    def test_non_system_user_obfuscated_in_falco(self):
+        """Non-system usernames in Falco alerts should be obfuscated."""
+        o = Obfuscator()
+        text = "Sensitive file opened for reading by non-trusted program (user=deploy command=cat /etc/shadow)"
+        result = o.obfuscate(text)
+        assert "deploy" not in result
+        assert "[USER-1]" in result
+
+    def test_falco_alert_with_ip(self):
+        """Falco network alerts contain IPs that should be obfuscated."""
+        o = Obfuscator()
+        text = "Outbound connection to suspicious IP (user=root command=curl 203.0.113.50 container_id=host)"
+        result = o.obfuscate(text)
+        assert "203.0.113.50" not in result
+        assert "user=root" in result
+
+    def test_obfuscated_equals_original_when_nothing_sensitive(self):
+        """When no sensitive data exists, obfuscated output matches original."""
+        alert = {
+            "output": "Critical Mass file deletion detected (user=root command=rm -rf -- /var/lib/dpkg/tmp.ci container_id=host)",
+            "rule": "Mass file deletion"
+        }
+        obfuscated, mapping = obfuscate_alert(alert)
+        assert obfuscated["output"] == alert["output"]
