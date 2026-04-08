@@ -5,7 +5,7 @@ services:
     container_name: sib-analysis
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "${ANALYSIS_BIND:-127.0.0.1}:5000:5000"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - analysis-cache:/app/cache

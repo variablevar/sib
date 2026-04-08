@@ -13,6 +13,7 @@ import logging
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from markupsafe import escape
@@ -173,6 +174,28 @@ def health():
     return jsonify({'status': 'healthy', 'service': 'sib-analysis-api'})
 
 
+def _is_safe_health_url(url: str) -> bool:
+    """Validate that a health-check URL points to an internal service only.
+
+    Blocks IP addresses (except loopback) and external hostnames to
+    prevent SSRF via environment variable injection.
+    """
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        host = parsed.hostname or ''
+        # Allow localhost and Docker service names (sib-* pattern)
+        if host in ('localhost', '127.0.0.1'):
+            return True
+        # Allow internal Docker service names — letters, digits, hyphens only, no dots
+        if re.fullmatch(r'[a-z0-9][a-z0-9\-]*', host):
+            return True
+        return False
+    except Exception:
+        return False
+
+
 @app.route('/api/health/all', methods=['GET'])
 def health_all():
     """Aggregate health check for all SIB services.
@@ -216,6 +239,9 @@ def health_all():
 
     import requests as http_client
     for name, check in checks.items():
+        if not _is_safe_health_url(check['url']):
+            results[name] = {'status': 'error', 'detail': 'invalid health-check URL'}
+            continue
         try:
             r = http_client.get(check['url'], timeout=timeout)  # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
             results[name] = {
@@ -469,6 +495,8 @@ def history_page():
 @app.route('/history/<cache_key>', methods=['GET'])
 def history_detail(cache_key: str):
     """View a cached analysis."""
+    if not re.fullmatch(r'[a-f0-9]{16}', cache_key):
+        return "Invalid cache key", 400
     cached = get_cached_analysis(cache_key)
     if not cached:
         return "Analysis not found", 404

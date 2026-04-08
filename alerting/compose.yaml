@@ -6,7 +6,7 @@ services:
     container_name: sib-sidekick
     restart: unless-stopped
     ports:
-      - "0.0.0.0:${SIDEKICK_PORT:-2801}:2801"
+      - "${LISTEN_ADDR:-0.0.0.0}:${SIDEKICK_PORT:-2801}:2801"
     volumes:
       - ./config/config.yaml:/etc/falcosidekick/config.yaml:ro
       # mTLS certificates (mounted when MTLS_ENABLED=true)

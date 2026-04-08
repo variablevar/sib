@@ -45,7 +45,7 @@ class LokiClient(LogClient):
             'limit': limit,
         }
         
-        response = requests.get(f"{self.url}/loki/api/v1/query_range", params=params)
+        response = requests.get(f"{self.url}/loki/api/v1/query_range", params=params, timeout=30)
         response.raise_for_status()
         
         data = response.json()
@@ -87,7 +87,8 @@ class LokiClient(LogClient):
             response = requests.post(
                 f"{self.url}/loki/api/v1/push",
                 json=payload,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
+                timeout=30
             )
             response.raise_for_status()
             return True
@@ -111,7 +112,7 @@ class VictoriaLogsClient(LogClient):
             'limit': limit,
         }
 
-        response = requests.get(f"{self.url}/select/logsql/query", params=params)
+        response = requests.get(f"{self.url}/select/logsql/query", params=params, timeout=30)
         response.raise_for_status()
 
         alerts = []
@@ -157,7 +158,8 @@ class VictoriaLogsClient(LogClient):
             response = requests.post(
                 f"{self.url}/insert/jsonline",
                 data=json.dumps(entry) + '\n',
-                headers={"Content-Type": "application/stream+x-ndjson"}
+                headers={"Content-Type": "application/stream+x-ndjson"},
+                timeout=30
             )
             response.raise_for_status()
             return True
