@@ -886,7 +886,7 @@ def index():
         
         <h2>Grafana Integration</h2>
         <p>Add a data link to your log panels:</p>
-        <pre>http://localhost:5000/analyze?output=${{__value.raw}}&amp;rule=${{__data.fields.rule}}&amp;priority=${{__data.fields.priority}}&amp;hostname=${{__data.fields.hostname}}</pre>
+        <pre>http://{request.host}/analyze?output=${{__value.raw}}&amp;rule=${{__data.fields.rule}}&amp;priority=${{__data.fields.priority}}&amp;hostname=${{__data.fields.hostname}}</pre>
     </body>
     </html>
     """
