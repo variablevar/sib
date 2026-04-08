@@ -439,7 +439,7 @@ docker pull alpine
 ### Where to Get Help
 
 - **GitHub Issues**: [github.com/matijazezelj/sib/issues](https://github.com/matijazezelj/sib/issues)
-- **Reddit**: [u/matijaz](https://reddit.com/u/matijaz)
+- **Email**: [sib@rtfm.hr](mailto:sib@rtfm.hr)
 
 When reporting issues, please include:
 1. SIB version (git commit hash)

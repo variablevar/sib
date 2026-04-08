@@ -11,6 +11,8 @@ title: SIEM in a Box
 <a href="https://github.com/matijazezelj/sib" class="btn">View on GitHub</a>
 <a href="https://github.com/matijazezelj/sib#-quick-start" class="btn">Documentation</a>
 
+> **Want SIB deployed and maintained for you?** I'll set it up on your infrastructure, tune detection rules for your environment, and keep it running. [Get in touch →](mailto:sib@rtfm.hr)
+
 ---
 
 ## 📚 Documentation
@@ -464,11 +466,17 @@ I built SIB because I was tired of watching small teams get breached because the
 
 ---
 
+## � Contact
+
+Have questions, feedback, or want help deploying SIB in your environment?
+
+📧 **[sib@rtfm.hr](mailto:sib@rtfm.hr)**
+
+Whether you need a quick answer or a fully managed deployment — I'm happy to help.
+
+---
+
 ## 🔗 Links
 
 - **GitHub Repository**: [github.com/matijazezelj/sib](https://github.com/matijazezelj/sib)
 - **Full Documentation**: [README](https://github.com/matijazezelj/sib#readme)
-
----
-
-*Questions? Find me on Reddit: [u/matijaz](https://reddit.com/u/matijaz). If you catch something cool with SIB, I want to hear about it.*
