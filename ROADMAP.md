@@ -12,7 +12,8 @@ This is a living roadmap. Priorities may shift based on feedback and community c
 - Built-in backup/restore for storage volumes and config
 - Container images published to GHCR (`ghcr.io/matijazezelj/sib-analysis`, `sib-ansible`)
 - Upgrade notes and CHANGELOG
-- Rule packs for cloud, Kubernetes, and web server environments
+- Rule packs for cloud and web server environments
+- Kubernetes support via [sib-k8s](https://github.com/matijazezelj/sib-k8s) (Helm chart, EKS/GKE/AKS/webhook)
 
 ## 3–6 months
 - Dashboards for compliance views (e.g., CIS focus)

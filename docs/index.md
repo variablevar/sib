@@ -26,9 +26,9 @@ title: SIEM in a Box
 | [Threat Intelligence](threat-intel.md) | IOC feeds and blocklists |
 | [Security Hardening](security-hardening.md) | Production hardening checklist |
 | [Upgrade Guide](upgrade.md) | Upgrade notes and version history |
+| [Kubernetes](kubernetes.md) | Security monitoring for K8s clusters (EKS, GKE, AKS) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions |
 | [FAQ](faq.md) | Common questions and answers |
-| [Kubernetes Deployment](https://github.com/matijazezelj/sib-k8s) | Run SIB on Kubernetes |
 | [VictoriaMetrics Stack](victorialogs.md) | Default storage backend (VictoriaLogs + VictoriaMetrics) |
 
 ---

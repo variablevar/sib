@@ -8,8 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- Rule packs for cloud, Kubernetes, and web server environments
+- Rule packs for cloud and web server environments (`cloud_rules.yaml`, `webserver_rules.yaml`)
 - `docs/upgrade.md` with upgrade instructions
+- `docs/kubernetes.md` documenting sib-k8s integration
 
 ---
 
