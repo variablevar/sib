@@ -76,7 +76,8 @@ get_fleet_hosts() {
         fi
 
         # Check if we've left fleet section (same or lesser indentation, non-empty)
-        local line_indent=$(echo "$line" | sed 's/[^ ].*//')
+        local line_indent
+        line_indent=$(echo "$line" | sed 's/[^ ].*//')
         if [ ${#line_indent} -le ${#FLEET_INDENT} ] && echo "$line" | grep -qE '[a-zA-Z]'; then
             IN_FLEET=false
             IN_HOSTS=false
@@ -97,7 +98,8 @@ get_fleet_hosts() {
 
         # Extract hostname (first key under hosts with expected indentation)
         if $IN_HOSTS; then
-            local hostname=$(echo "$line" | grep -oP '^\s+\K[a-zA-Z0-9_-]+(?=:)' | head -1)
+            local hostname
+            hostname=$(echo "$line" | grep -oP '^\s+\K[a-zA-Z0-9_-]+(?=:)' | head -1)
             # Skip known sub-keys (ansible_host, host_labels, etc.)
             if [ -n "$hostname" ] && ! echo "$hostname" | grep -qE '^(ansible_|host_labels|role|environment)'; then
                 HOSTS+=("$hostname")
@@ -126,6 +128,7 @@ main() {
 
     # Get fleet hosts
     info "Reading fleet inventory from ${INVENTORY_FILE}..."
+    local HOSTS
     HOSTS=$(get_fleet_hosts)
 
     if [ -z "$HOSTS" ]; then
