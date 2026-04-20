@@ -1,0 +1,102 @@
+# ACSP — AI Cloud Security Platform (local dissertation stack)
+# Usage: docker compose up --build
+#
+# Requires Linux with eBPF-capable kernel for Falco (modern_ebpf). On macOS, use a Linux VM
+# or run API + processor + frontend with `docker compose up acsp-api acsp-processor acsp-frontend`
+# and emit demo events via POST /api/v1/demo/emit.
+
+services:
+  acsp-api:
+    build: ./platform/backend
+    command: ["python", "-m", "acsp.services.api"]
+    container_name: acsp-api
+    ports:
+      - "${ACSP_API_PORT:-8000}:8000"
+    environment:
+      DATABASE_PATH: /data/acsp.db
+      INTERNAL_SECRET: ${ACSP_INTERNAL_SECRET:-dev-secret-change-me}
+      CORS_ORIGINS: "*"
+    volumes:
+      - acsp-data:/data
+    networks:
+      - sib-network
+
+  acsp-processor:
+    build: ./platform/backend
+    command: ["python", "-m", "acsp.services.processor"]
+    container_name: acsp-processor
+    expose:
+      - "8787"
+    environment:
+      DATABASE_PATH: /data/acsp.db
+      INTERNAL_SECRET: ${ACSP_INTERNAL_SECRET:-dev-secret-change-me}
+      API_GATEWAY_URL: http://acsp-api:8000
+    volumes:
+      - acsp-data:/data
+    depends_on:
+      - acsp-api
+    networks:
+      - sib-network
+
+  sib-sidekick:
+    image: falcosecurity/falcosidekick:2.29.0
+    container_name: sib-sidekick
+    ports:
+      - "${SIDEKICK_PORT:-2801}:2801"
+    volumes:
+      - ./platform/infra/falcosidekick-platform.yaml:/etc/falcosidekick/config.yaml:ro
+    command: ["-c", "/etc/falcosidekick/config.yaml"]
+    depends_on:
+      - acsp-processor
+    networks:
+      - sib-network
+
+  sib-falco:
+    image: falcosecurity/falco:0.40.0
+    container_name: sib-falco
+    hostname: sib-host
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - ./detection/config/falco.yaml:/etc/falco/falco.yaml:ro
+      - ./detection/config/rules:/etc/falco/rules:ro
+      - ./certs:/etc/falco/certs:ro
+      - /var/run/docker.sock:/host/var/run/docker.sock:ro
+      - /dev:/host/dev:ro
+      - /proc:/host/proc:ro
+      - /etc:/host/etc:ro
+    environment:
+      - HOST_ROOT=/host
+      - FALCOCTL_DRIVER_TYPE=modern_ebpf
+    depends_on:
+      - sib-sidekick
+    networks:
+      - sib-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  acsp-frontend:
+    build:
+      context: ./platform/frontend
+      dockerfile: Dockerfile
+      args:
+        API_PROXY_TARGET: http://acsp-api:8000
+    container_name: acsp-frontend
+    ports:
+      - "${ACSP_UI_PORT:-3040}:3000"
+    depends_on:
+      - acsp-api
+    networks:
+      - sib-network
+
+networks:
+  sib-network:
+    name: sib-network
+    driver: bridge
+
+volumes:
+  acsp-data:

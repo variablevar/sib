@@ -57,3 +57,7 @@ coverage/
 .ansible/
 analysis/__pycache__/
 **/__pycache__/
+
+# ACSP local tooling
+platform/backend/.venv/
+platform/frontend/node_modules/

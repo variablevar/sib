@@ -1,0 +1,8 @@
+# Falcosidekick for ACSP — forwards Falco JSON to the local event processor (webhook).
+# Generated reference config; tune minimumpriority to match Falco output settings.
+debug: false
+
+webhook:
+  address: "http://acsp-processor:8787/ingest/falco"
+  method: "POST"
+  minimumpriority: "notice"
